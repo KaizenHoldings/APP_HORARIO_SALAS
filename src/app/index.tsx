@@ -1,7 +1,7 @@
 import { Ionicons } from "@expo/vector-icons";
 import axios from "axios";
 import { LinearGradient } from "expo-linear-gradient";
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import {
   ActivityIndicator,
   Modal,
@@ -46,6 +46,12 @@ export default function HomeScreen() {
 
   // Estado de salas y sala asignada a esta tablet
   const [salas, setSalas] = useState<SalaInfo[]>([]);
+  const salasRef = useRef<SalaInfo[]>([]);
+
+  useEffect(() => {
+    salasRef.current = salas;
+  }, [salas]);
+
   const [currentRoom, setCurrentRoom] = useState<ConfiguredRoom | null>(null);
   const [isConfigModalOpen, setIsConfigModalOpen] = useState(false);
   const [selectedRoomInModal, setSelectedRoomInModal] =
@@ -93,62 +99,61 @@ export default function HomeScreen() {
   }, []);
 
   // Consultar la agenda de la sala asignada a esta tablet
-  const consultarAgenda = useCallback(
-    async (emailToFetch: string) => {
-      if (!emailToFetch) return;
-      if (!API_BASE_URL) {
-        console.warn("⚠️ EXPO_PUBLIC_API_URL no configurada en .env");
-        setLoading(false);
-        return;
-      }
+  const consultarAgenda = useCallback(async (emailToFetch: string) => {
+    if (!emailToFetch) return;
+    if (!API_BASE_URL) {
+      console.warn("⚠️ EXPO_PUBLIC_API_URL no configurada en .env");
+      setLoading(false);
+      return;
+    }
 
-      setLoading(true);
+    setLoading(true);
 
-      const todayStr = new Date().toISOString().split("T")[0];
+    const todayStr = new Date().toISOString().split("T")[0];
 
-      try {
-        const response = await axios.get(`${API_BASE_URL}/salas/agenda`, {
-          headers: { "X-API-Key": process.env.EXPO_PUBLIC_API_KEY ?? "" },
-          params: {
-            email: emailToFetch,
-            fecha: todayStr,
-          },
-          timeout: 5000,
-        });
+    try {
+      const response = await axios.get(`${API_BASE_URL}/salas/agenda`, {
+        headers: { "X-API-Key": process.env.EXPO_PUBLIC_API_KEY ?? "" },
+        params: {
+          email: emailToFetch,
+          fecha: todayStr,
+        },
+        timeout: 5000,
+      });
 
-        if (response.data && response.data.sala) {
-          const agendaData: AgendaResponse = response.data;
-          // Si el API devuelve nombre null/vacío, buscar en el catálogo de salas
-          if (!agendaData.sala.nombre) {
-            const salaEnCatalogo = salas.find((s) => s.email === emailToFetch);
-            if (salaEnCatalogo?.nombre) {
-              agendaData.sala.nombre = salaEnCatalogo.nombre;
-            }
+      if (response.data && response.data.sala) {
+        const agendaData: AgendaResponse = response.data;
+        // Si el API devuelve nombre null/vacío, buscar en el catálogo de salas
+        if (!agendaData.sala.nombre) {
+          const salaEnCatalogo = salasRef.current.find(
+            (s) => s.email === emailToFetch,
+          );
+          if (salaEnCatalogo?.nombre) {
+            agendaData.sala.nombre = salaEnCatalogo.nombre;
           }
-          setAgenda(agendaData);
-          // Sincronizar currentRoom con el nombre real
-          setCurrentRoom((prev) => ({
-            nombre: agendaData.sala.nombre || prev?.nombre || emailToFetch,
-            email: emailToFetch,
-          }));
-        } else {
-          throw new Error("Respuesta inválida del servidor");
         }
-      } catch (err: any) {
-        const errorMsg =
-          err?.response?.data?.detail ||
-          err?.response?.data?.message ||
-          err?.message ||
-          "No se pudo conectar con el servidor";
-        console.error("❌ Error al consultar la agenda del backend:", errorMsg);
-        setAgenda(null);
-      } finally {
-        setLoading(false);
-        setRefreshing(false);
+        setAgenda(agendaData);
+        // Sincronizar currentRoom con el nombre real
+        setCurrentRoom((prev) => ({
+          nombre: agendaData.sala.nombre || prev?.nombre || emailToFetch,
+          email: emailToFetch,
+        }));
+      } else {
+        throw new Error("Respuesta inválida del servidor");
       }
-    },
-    [salas],
-  );
+    } catch (err: any) {
+      const errorMsg =
+        err?.response?.data?.detail ||
+        err?.response?.data?.message ||
+        err?.message ||
+        "No se pudo conectar con el servidor";
+      console.error("❌ Error al consultar la agenda del backend:", errorMsg);
+      setAgenda(null);
+    } finally {
+      setLoading(false);
+      setRefreshing(false);
+    }
+  }, []);
 
   // Inicialización: cargar sala persistida de la tablet y consultar backend
   useEffect(() => {
@@ -179,7 +184,8 @@ export default function HomeScreen() {
       }
     }
     void initTablet();
-  }, [cargarSalas, consultarAgenda]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   // Normalizar eventos (corrige el problema de bloques "hasta: 05:00 PM" cuando hay reuniones antes)
   const normalizedEventos = useMemo(
