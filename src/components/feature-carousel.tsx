@@ -547,7 +547,7 @@ export interface FeatureCarouselProps {
 }
 
 export function FeatureCarousel({
-  items = DEFAULT_AGENDA_ITEMS,
+  items = [],
   selectedIndex = 0,
   onSelectIndex,
   panelTitle,

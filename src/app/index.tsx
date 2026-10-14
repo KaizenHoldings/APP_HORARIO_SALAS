@@ -1,4 +1,4 @@
-﻿import { Ionicons } from "@expo/vector-icons";
+import { Ionicons } from "@expo/vector-icons";
 import axios from "axios";
 import { LinearGradient } from "expo-linear-gradient";
 import { useCallback, useEffect, useMemo, useState } from "react";
@@ -18,7 +18,6 @@ import { SafeAreaView } from "react-native-safe-area-context";
 
 import { AgendaCardItem, FeatureCarousel } from "@/components/feature-carousel";
 import { KhLogo } from "@/components/kh-logo";
-import { DEFAULT_AGENDA_DATA, DEFAULT_SALAS } from "@/constants/mock-agenda";
 import { AgendaResponse, SalaInfo } from "@/types/agenda";
 import {
   ConfiguredRoom,
@@ -35,6 +34,8 @@ import {
   normalizeAgendaEventos,
 } from "@/utils/time";
 
+const API_BASE_URL = (process.env.EXPO_PUBLIC_API_URL || "").replace(/\/$/, "");
+
 export default function HomeScreen() {
   const { width } = useWindowDimensions();
   const isTablet = width >= 768;
@@ -44,25 +45,17 @@ export default function HomeScreen() {
     themePref === "system" ? colorScheme === "dark" : themePref === "dark";
 
   // Estado de salas y sala asignada a esta tablet
-  const [salas, setSalas] = useState<SalaInfo[]>(
-    DEFAULT_SALAS.map((s) => ({
-      nombre: s.nombre,
-      email: s.email,
-      timezone: "America/Caracas",
-    })),
-  );
-  const [currentRoom, setCurrentRoom] = useState<ConfiguredRoom>(
-    DEFAULT_SALAS[0],
-  );
+  const [salas, setSalas] = useState<SalaInfo[]>([]);
+  const [currentRoom, setCurrentRoom] = useState<ConfiguredRoom | null>(null);
   const [isConfigModalOpen, setIsConfigModalOpen] = useState(false);
   const [selectedRoomInModal, setSelectedRoomInModal] =
-    useState<ConfiguredRoom>(DEFAULT_SALAS[0]);
+    useState<ConfiguredRoom | null>(null);
   const [selectedThemeInModal, setSelectedThemeInModal] =
     useState<ThemePreference>("system");
 
   // Estado de la agenda y carga
-  const [agenda, setAgenda] = useState<AgendaResponse>(DEFAULT_AGENDA_DATA);
-  const [loading, setLoading] = useState(false);
+  const [agenda, setAgenda] = useState<AgendaResponse | null>(null);
+  const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
 
   // Reloj del sistema y selección del carrusel
@@ -75,73 +68,93 @@ export default function HomeScreen() {
   const [showDetailedSchedule, setShowDetailedSchedule] = useState(false);
 
   // Cargar lista de salas disponibles desde el backend real
-  const cargarSalas = useCallback(async () => {
+  const cargarSalas = useCallback(async (): Promise<SalaInfo[]> => {
+    if (!API_BASE_URL) {
+      console.warn("⚠️ EXPO_PUBLIC_API_URL no configurada en el archivo .env");
+      return [];
+    }
+
     try {
-      const response = await axios.get("http://127.0.0.1:8000/salas", {
-        timeout: 3500,
+      const response = await axios.get(`${API_BASE_URL}/salas`, {
+        timeout: 4500,
         headers: { "X-API-Key": process.env.EXPO_PUBLIC_API_KEY ?? "" },
       });
-      if (response.data?.salas?.length) {
+      if (response.data?.salas && Array.isArray(response.data.salas)) {
         setSalas(response.data.salas);
+        return response.data.salas;
       }
-    } catch {
-      setSalas(
-        DEFAULT_SALAS.map((s) => ({
-          nombre: s.nombre,
-          email: s.email,
-          timezone: "America/Caracas",
-        })),
-      );
+      setSalas([]);
+      return [];
+    } catch (err: any) {
+      console.error("❌ Error al cargar salas desde el backend:", err?.message || err);
+      setSalas([]);
+      return [];
     }
   }, []);
 
   // Consultar la agenda de la sala asignada a esta tablet
-  const consultarAgenda = useCallback(async (emailToFetch: string) => {
-    if (!emailToFetch) return;
-    setLoading(true);
-
-    const todayStr = new Date().toISOString().split("T")[0];
-
-    try {
-      const response = await axios.get("http://127.0.0.1:8000/salas/agenda", {
-        headers: { "X-API-Key": process.env.EXPO_PUBLIC_API_KEY ?? "" },
-        params: {
-          email: emailToFetch,
-          fecha: todayStr,
-        },
-        timeout: 4500,
-      });
-
-      if (response.data && response.data.sala) {
-        const agendaData = response.data;
-        // Si el API devuelve nombre null/vacío, buscar en el catálogo de salas
-        if (!agendaData.sala.nombre) {
-          const salaEnCatalogo = salas.find((s) => s.email === emailToFetch);
-          if (salaEnCatalogo?.nombre) {
-            agendaData.sala.nombre = salaEnCatalogo.nombre;
-          }
-        }
-        setAgenda(agendaData);
-        // Sincronizar currentRoom con el nombre real (por si cambió)
-        setCurrentRoom((prev) => ({
-          ...prev,
-          nombre: agendaData.sala.nombre || prev.nombre,
-        }));
-      } else {
-        throw new Error("Respuesta inválida");
+  const consultarAgenda = useCallback(
+    async (emailToFetch: string) => {
+      if (!emailToFetch) return;
+      if (!API_BASE_URL) {
+        console.warn("⚠️ EXPO_PUBLIC_API_URL no configurada en .env");
+        setLoading(false);
+        return;
       }
-    } catch {
-      setAgenda(DEFAULT_AGENDA_DATA);
-    } finally {
-      setLoading(false);
-      setRefreshing(false);
-    }
-  }, []);
+
+      setLoading(true);
+
+      const todayStr = new Date().toISOString().split("T")[0];
+
+      try {
+        const response = await axios.get(`${API_BASE_URL}/salas/agenda`, {
+          headers: { "X-API-Key": process.env.EXPO_PUBLIC_API_KEY ?? "" },
+          params: {
+            email: emailToFetch,
+            fecha: todayStr,
+          },
+          timeout: 5000,
+        });
+
+        if (response.data && response.data.sala) {
+          const agendaData: AgendaResponse = response.data;
+          // Si el API devuelve nombre null/vacío, buscar en el catálogo de salas
+          if (!agendaData.sala.nombre) {
+            const salaEnCatalogo = salas.find((s) => s.email === emailToFetch);
+            if (salaEnCatalogo?.nombre) {
+              agendaData.sala.nombre = salaEnCatalogo.nombre;
+            }
+          }
+          setAgenda(agendaData);
+          // Sincronizar currentRoom con el nombre real
+          setCurrentRoom((prev) => ({
+            nombre: agendaData.sala.nombre || prev?.nombre || emailToFetch,
+            email: emailToFetch,
+          }));
+        } else {
+          throw new Error("Respuesta inválida del servidor");
+        }
+      } catch (err: any) {
+        const errorMsg =
+          err?.response?.data?.detail ||
+          err?.response?.data?.message ||
+          err?.message ||
+          "No se pudo conectar con el servidor";
+        console.error("❌ Error al consultar la agenda del backend:", errorMsg);
+        setAgenda(null);
+      } finally {
+        setLoading(false);
+        setRefreshing(false);
+      }
+    },
+    [salas],
+  );
 
   // Inicialización: cargar sala persistida de la tablet y consultar backend
   useEffect(() => {
     async function initTablet() {
-      await cargarSalas();
+      setLoading(true);
+      const availableSalas = await cargarSalas();
       const savedTheme = await getThemePreference();
       setThemePref(savedTheme);
       setSelectedThemeInModal(savedTheme);
@@ -151,8 +164,18 @@ export default function HomeScreen() {
         setCurrentRoom(savedRoom);
         setSelectedRoomInModal(savedRoom);
         await consultarAgenda(savedRoom.email);
+      } else if (availableSalas.length > 0) {
+        const firstRoom: ConfiguredRoom = {
+          nombre: availableSalas[0].nombre,
+          email: availableSalas[0].email,
+        };
+        setCurrentRoom(firstRoom);
+        setSelectedRoomInModal(firstRoom);
+        await saveConfiguredRoom(firstRoom);
+        await consultarAgenda(firstRoom.email);
       } else {
-        await consultarAgenda(DEFAULT_SALAS[0].email);
+        setLoading(false);
+        console.warn("⚠️ No se encontraron salas disponibles en el servidor");
       }
     }
     void initTablet();
@@ -210,6 +233,7 @@ export default function HomeScreen() {
 
   // Guardar configuración de la sala en AsyncStorage para esta tablet
   const handleSaveRoomConfig = async () => {
+    if (!selectedRoomInModal) return;
     await saveConfiguredRoom(selectedRoomInModal);
     setCurrentRoom(selectedRoomInModal);
     await saveThemePreference(selectedThemeInModal);
@@ -220,7 +244,11 @@ export default function HomeScreen() {
 
   const onRefresh = () => {
     setRefreshing(true);
-    void consultarAgenda(currentRoom.email);
+    if (currentRoom?.email) {
+      void consultarAgenda(currentRoom.email);
+    } else {
+      void cargarSalas();
+    }
   };
 
   // Mapear los eventos normalizados a los ítems del carrusel Apple Glass
@@ -244,9 +272,9 @@ export default function HomeScreen() {
         correo_organizador: evento.correo_organizador,
         isAvailable,
         isCurrentNow,
-        fecha: evento.fecha || agenda.fecha,
-        zona_horaria: evento.zona_horaria || agenda.sala.timezone,
-        salaNombre: currentRoom.nombre || agenda.sala.nombre,
+        fecha: evento.fecha || agenda?.fecha || "",
+        zona_horaria: evento.zona_horaria || agenda?.sala?.timezone || "America/Caracas",
+        salaNombre: currentRoom?.nombre || agenda?.sala?.nombre || "",
       };
     },
   );
@@ -255,7 +283,7 @@ export default function HomeScreen() {
   const isRoomCurrentlyAvailable = activeSlot ? activeSlot.isAvailable : true;
   // Fuente de verdad: currentRoom.nombre (sincronizado al cargar agenda)
   // Fallback encadenado: agenda.sala.nombre -> currentRoom.nombre -> ""
-  const roomDisplayName = currentRoom.nombre || agenda?.sala?.nombre || "";
+  const roomDisplayName = currentRoom?.nombre || agenda?.sala?.nombre || "Cargando sala...";
 
   // Colores dinámicos del estado para la cabecera
   const statusColor = isRoomCurrentlyAvailable
@@ -418,7 +446,13 @@ export default function HomeScreen() {
                   isDark ? styles.iconActionBtnDark : styles.iconActionBtnLight,
                   pressed && styles.btnPressed,
                 ]}
-                onPress={() => void consultarAgenda(currentRoom.email)}
+                onPress={() => {
+                  if (currentRoom?.email) {
+                    void consultarAgenda(currentRoom.email);
+                  } else {
+                    void cargarSalas();
+                  }
+                }}
                 accessibilityLabel="Actualizar agenda"
               >
                 {loading ? (
@@ -591,9 +625,9 @@ export default function HomeScreen() {
                       styles.timelineRow,
                       isDark ? styles.timelineRowDark : styles.timelineRowLight,
                       isSelected &&
-                        (isDark
-                          ? styles.timelineRowSelectedDark
-                          : styles.timelineRowSelectedLight),
+                      (isDark
+                        ? styles.timelineRowSelectedDark
+                        : styles.timelineRowSelectedLight),
                       pressed && styles.btnPressed,
                     ]}
                   >
@@ -842,7 +876,7 @@ export default function HomeScreen() {
               showsVerticalScrollIndicator={true}
             >
               {salas.map((room) => {
-                const isSelected = selectedRoomInModal.email === room.email;
+                const isSelected = selectedRoomInModal?.email === room.email;
                 return (
                   <Pressable
                     key={room.email}
@@ -858,9 +892,9 @@ export default function HomeScreen() {
                         ? styles.modalRoomOptionDark
                         : styles.modalRoomOptionLight,
                       isSelected &&
-                        (isDark
-                          ? styles.modalRoomOptionSelectedDark
-                          : styles.modalRoomOptionSelectedLight),
+                      (isDark
+                        ? styles.modalRoomOptionSelectedDark
+                        : styles.modalRoomOptionSelectedLight),
                       pressed && styles.btnPressed,
                     ]}
                   >
@@ -916,9 +950,9 @@ export default function HomeScreen() {
                           ? styles.radioButtonDark
                           : styles.radioButtonLight,
                         isSelected &&
-                          (isDark
-                            ? styles.radioButtonSelectedDark
-                            : styles.radioButtonSelectedLight),
+                        (isDark
+                          ? styles.radioButtonSelectedDark
+                          : styles.radioButtonSelectedLight),
                       ]}
                     >
                       {isSelected && (
@@ -971,9 +1005,9 @@ export default function HomeScreen() {
                             ? styles.themeOptionBtnDark
                             : styles.themeOptionBtnLight,
                           isSelected &&
-                            (isDark
-                              ? styles.themeOptionSelectedDark
-                              : styles.themeOptionSelectedLight),
+                          (isDark
+                            ? styles.themeOptionSelectedDark
+                            : styles.themeOptionSelectedLight),
                           pressed && styles.btnPressed,
                         ]}
                         onPress={() => setSelectedThemeInModal(theme)}
@@ -1044,10 +1078,12 @@ export default function HomeScreen() {
               </Pressable>
 
               <Pressable
+                disabled={!selectedRoomInModal}
                 style={({ pressed }) => [
                   styles.modalSaveBtn,
                   isDark ? styles.modalSaveBtnDark : styles.modalSaveBtnLight,
-                  pressed && styles.btnPressed,
+                  !selectedRoomInModal && { opacity: 0.4 },
+                  pressed && selectedRoomInModal && styles.btnPressed,
                 ]}
                 onPress={() => void handleSaveRoomConfig()}
               >
