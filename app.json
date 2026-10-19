@@ -8,9 +8,14 @@
     "scheme": "salastablet",
     "userInterfaceStyle": "automatic",
     "ios": {
-      "icon": "./assets/expo.icon"
+      "icon": "./assets/images/icon.png"
     },
     "android": {
+      "package": "com.kaizen.salas",
+      "permissions": [
+        "android.permission.INTERNET",
+        "android.permission.ACCESS_NETWORK_STATE"
+      ],
       "adaptiveIcon": {
         "backgroundColor": "#E6F4FE",
         "foregroundImage": "./assets/images/android-icon-foreground.png",
@@ -25,6 +30,7 @@
     },
     "plugins": [
       "expo-router",
+      "./plugins/withCleartextTraffic.js",
       [
         "expo-splash-screen",
         {
@@ -37,6 +43,12 @@
     "experiments": {
       "typedRoutes": true,
       "reactCompiler": true
+    },
+    "extra": {
+      "router": {},
+      "eas": {
+        "projectId": "34e570c9-9ea2-4ee1-b4b7-4a48da8be580"
+      }
     }
   }
 }

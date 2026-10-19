@@ -1,0 +1,28 @@
+{
+    "cli": {
+        "version": ">= 24.14.0",
+        "appVersionSource": "remote"
+    },
+    "build": {
+        "development": {
+            "developmentClient": true,
+            "distribution": "internal"
+        },
+        "preview": {
+            "distribution": "internal",
+            "android": {
+                "buildType": "apk"
+            },
+            "env": {
+                "EXPO_PUBLIC_API_URL": "http://10.26.102.2:8000",
+                "EXPO_PUBLIC_API_KEY": "salas-k7x9p2m4n8q1r3t6v0w5y2z8"
+            }
+        },
+        "production": {
+            "autoIncrement": true
+        }
+    },
+    "submit": {
+        "production": {}
+    }
+}

@@ -10,6 +10,7 @@ import {
   ScrollView,
   StyleSheet,
   Text,
+  TouchableOpacity,
   useColorScheme,
   useWindowDimensions,
   View,
@@ -35,6 +36,7 @@ import {
 } from "@/utils/time";
 
 const API_BASE_URL = (process.env.EXPO_PUBLIC_API_URL || "").replace(/\/$/, "");
+//const API_BASE_URL = "http://10.26.102.2:8000";
 
 export default function HomeScreen() {
   const { width } = useWindowDimensions();
@@ -59,10 +61,11 @@ export default function HomeScreen() {
   const [selectedThemeInModal, setSelectedThemeInModal] =
     useState<ThemePreference>("system");
 
-  // Estado de la agenda y carga
+  // Estado de la agenda, carga y diagnósticos de conexión
   const [agenda, setAgenda] = useState<AgendaResponse | null>(null);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
+  const [connectionError, setConnectionError] = useState<string | null>(null);
 
   // Reloj del sistema y selección del carrusel
   const [systemTime, setSystemTime] = useState<{
@@ -76,23 +79,32 @@ export default function HomeScreen() {
   // Cargar lista de salas disponibles desde el backend real
   const cargarSalas = useCallback(async (): Promise<SalaInfo[]> => {
     if (!API_BASE_URL) {
-      console.warn("⚠️ EXPO_PUBLIC_API_URL no configurada en el archivo .env");
+      const msg = "EXPO_PUBLIC_API_URL no configurada en el entorno";
+      console.warn(`⚠️ ${msg}`);
+      setConnectionError(msg);
       return [];
     }
 
     try {
       const response = await axios.get(`${API_BASE_URL}/salas`, {
-        timeout: 4500,
+        timeout: 10000,
         headers: { "X-API-Key": process.env.EXPO_PUBLIC_API_KEY ?? "" },
       });
       if (response.data?.salas && Array.isArray(response.data.salas)) {
         setSalas(response.data.salas);
+        setConnectionError(null);
         return response.data.salas;
       }
       setSalas([]);
       return [];
     } catch (err: any) {
-      console.error("❌ Error al cargar salas desde el backend:", err?.message || err);
+      const errorMsg =
+        err?.response?.data?.detail ||
+        err?.response?.data?.message ||
+        err?.message ||
+        "Error de red al conectar con /salas";
+      console.error("❌ Error al cargar salas desde el backend:", errorMsg);
+      setConnectionError(`Error al consultar salas (${API_BASE_URL}): ${errorMsg}`);
       setSalas([]);
       return [];
     }
@@ -102,7 +114,9 @@ export default function HomeScreen() {
   const consultarAgenda = useCallback(async (emailToFetch: string) => {
     if (!emailToFetch) return;
     if (!API_BASE_URL) {
-      console.warn("⚠️ EXPO_PUBLIC_API_URL no configurada en .env");
+      const msg = "EXPO_PUBLIC_API_URL no configurada en el entorno";
+      console.warn(`⚠️ ${msg}`);
+      setConnectionError(msg);
       setLoading(false);
       return;
     }
@@ -118,7 +132,7 @@ export default function HomeScreen() {
           email: emailToFetch,
           fecha: todayStr,
         },
-        timeout: 5000,
+        timeout: 10000,
       });
 
       if (response.data && response.data.sala) {
@@ -133,6 +147,7 @@ export default function HomeScreen() {
           }
         }
         setAgenda(agendaData);
+        setConnectionError(null);
         // Sincronizar currentRoom con el nombre real
         setCurrentRoom((prev) => ({
           nombre: agendaData.sala.nombre || prev?.nombre || emailToFetch,
@@ -148,6 +163,7 @@ export default function HomeScreen() {
         err?.message ||
         "No se pudo conectar con el servidor";
       console.error("❌ Error al consultar la agenda del backend:", errorMsg);
+      setConnectionError(`Error de agenda: ${errorMsg}`);
       setAgenda(null);
     } finally {
       setLoading(false);
@@ -343,6 +359,39 @@ export default function HomeScreen() {
           />
         }
       >
+        {/* Banner de error de conexión en vivo */}
+        {connectionError && (
+          <View
+            style={{
+              marginHorizontal: isTablet ? 32 : 16,
+              marginBottom: 12,
+              padding: 12,
+              borderRadius: 12,
+              backgroundColor: isDark ? "rgba(239, 68, 68, 0.2)" : "#FEE2E2",
+              borderWidth: 1,
+              borderColor: "#EF4444",
+              flexDirection: "row",
+              alignItems: "center",
+              gap: 8,
+            }}
+          >
+            <Ionicons name="alert-circle-outline" size={20} color="#EF4444" />
+            <Text
+              style={{
+                color: isDark ? "#FCA5A5" : "#B91C1C",
+                fontSize: 13,
+                fontWeight: "600",
+                flex: 1,
+              }}
+            >
+              {connectionError}
+            </Text>
+            <TouchableOpacity onPress={onRefresh} hitSlop={10}>
+              <Ionicons name="reload" size={18} color="#EF4444" />
+            </TouchableOpacity>
+          </View>
+        )}
+
         {/* Cabecera Apple Glassmorphic: Sala, Estado en Vivo, Reloj y Controles */}
         <View
           style={[
