@@ -3,6 +3,7 @@ import type { ComponentType } from 'react';
 import { BackgroundPreview } from './background-preview';
 import { CodeSlotsPreview } from './code-slots-preview';
 import { NavbarPreview } from './navbar-preview';
+import { THIS_ROOM_SCENES, ThisRoomPreview } from './this-room-preview';
 import { TokensPreview } from './tokens-preview';
 
 /**
@@ -23,9 +24,20 @@ export interface CatalogEntry {
   status: CatalogStatus;
   layout: 'screen' | 'stage';
   Preview: ComponentType;
+  /** Estados simulables que aparecen en la barra del lab (ver `useLabScene`). */
+  scenes?: { id: string; label: string }[];
 }
 
 export const catalog: CatalogEntry[] = [
+  {
+    id: 'esta-sala',
+    title: 'Esta sala',
+    description: 'Estado de la sala, hora con foto y línea de tiempo del día.',
+    status: 'en-progreso',
+    layout: 'screen',
+    Preview: ThisRoomPreview,
+    scenes: THIS_ROOM_SCENES,
+  },
   {
     id: 'navbar',
     title: 'Navbar',

@@ -6,6 +6,7 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { AppBackground } from '@/design/components/app-background';
 import { useVisualTheme } from '@/design/hooks/use-visual-theme';
 import { catalog, type CatalogEntry } from '@/design/lab/catalog';
+import { LabSceneContext } from '@/design/lab/lab-scene';
 import { type ThemePreference, VisualThemeProvider } from '@/design/theme/visual-theme';
 import { radius, space, type } from '@/design/tokens';
 
@@ -28,16 +29,27 @@ export default function LabScreen() {
     catalog.some((entry) => entry.id === params.c) ? (params.c as string) : catalog[0]?.id,
   );
   const selected = catalog.find((entry) => entry.id === selectedId);
-  const toolbar = <LabToolbar selectedId={selectedId} onSelect={setSelectedId} />;
+  const [scene, setScene] = useState<string | null>(selected?.scenes?.[0]?.id ?? null);
+
+  const select = (id: string) => {
+    setSelectedId(id);
+    setScene(catalog.find((e) => e.id === id)?.scenes?.[0]?.id ?? null);
+  };
 
   return (
     <VisualThemeProvider initial={initial} persist={false}>
-      <AppBackground>
-        {/* En vistas de pantalla completa la barra del lab queda debajo (el menú lateral la tapa). */}
-        {selected?.layout === 'screen' ? toolbar : null}
-        {selected ? <Stage entry={selected} /> : null}
-        {selected?.layout !== 'screen' ? toolbar : null}
-      </AppBackground>
+      <LabSceneContext.Provider value={scene}>
+        <AppBackground>
+          {selected ? <Stage entry={selected} /> : null}
+          <LabToolbar
+            selectedId={selectedId}
+            onSelect={select}
+            scenes={selected?.scenes}
+            scene={scene}
+            onScene={setScene}
+          />
+        </AppBackground>
+      </LabSceneContext.Provider>
     </VisualThemeProvider>
   );
 }
@@ -46,7 +58,8 @@ function Stage({ entry }: { entry: CatalogEntry }) {
   const { colors } = useVisualTheme();
   if (entry.layout === 'screen') {
     return (
-      <View style={StyleSheet.absoluteFill} pointerEvents="box-none">
+      // Deja libre la franja inferior para la barra del laboratorio.
+      <View style={styles.screenStage} pointerEvents="box-none">
         <entry.Preview key={entry.id} />
       </View>
     );
@@ -69,9 +82,15 @@ function Stage({ entry }: { entry: CatalogEntry }) {
 function LabToolbar({
   selectedId,
   onSelect,
+  scenes,
+  scene,
+  onScene,
 }: {
   selectedId?: string;
   onSelect: (id: string) => void;
+  scenes?: { id: string; label: string }[];
+  scene: string | null;
+  onScene: (id: string) => void;
 }) {
   const { colors, preference, setPreference } = useVisualTheme();
   const barBg = colors.surface + 'D9';
@@ -97,6 +116,14 @@ function LabToolbar({
             onPress={() => setPreference(s.id)}
           />
         ))}
+        {scenes?.length ? (
+          <>
+            <View style={[styles.divider, { backgroundColor: colors.inkMuted }]} />
+            {scenes.map((s) => (
+              <Chip key={s.id} label={s.label} active={s.id === scene} onPress={() => onScene(s.id)} />
+            ))}
+          </>
+        ) : null}
       </View>
     </SafeAreaView>
   );
@@ -117,6 +144,7 @@ function Chip({ label, active, onPress }: { label: string; active: boolean; onPr
 
 const styles = StyleSheet.create({
   root: { flex: 1 },
+  screenStage: { position: 'absolute', top: 0, left: 0, right: 0, bottom: 72 },
   stageContent: { flexGrow: 1, padding: space.lg, paddingBottom: 96, gap: space.lg },
   heading: { gap: space.xs },
   toolbarWrap: { position: 'absolute', left: 0, right: 0, bottom: 0, alignItems: 'center' },

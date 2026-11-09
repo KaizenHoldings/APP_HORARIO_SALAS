@@ -34,3 +34,6 @@ vidrio con bordes finos y brillantes, texto blanco nítido.
 | 2026-11-09 | Navbar flotante sin barra de fondo: isotipo · switch de vidrio centrado · botón de ajustes circular | Minimalismo; los laterales miden igual para centrar el switch en cualquier orientación |
 | 2026-11-09 | Ajustes en panel de vidrio flotante desde la derecha, con páginas animadas (Ajustes → Admin → Modo admin) | Un solo lugar para tema y acceso admin, sin modales encima de modales |
 | 2026-11-09 | Admin con CodeSlots de 6 dígitos enmascarado; error = vaciado rojo + vibración horizontal; éxito = barrido con check | Feedback claro sin texto largo |
+| 2026-11-09 | "Esta sala": estado a la izquierda (nombre + estado de color + detalle), hora y foto a la derecha, línea de tiempo abajo | Jerarquía para leer el estado a distancia; la foto da identidad sin competir |
+| 2026-11-09 | Tres estados: Disponible (verde), Por ocuparse (naranja, reunión en ≤ 15 min), Ocupada (rojo) | Avisar antes de que alguien entre a una sala que está por ocuparse |
+| 2026-11-09 | Foto de sala con fundido y halo desenfocado hacia el fondo; empieza bajo el reloj | Integrarla al degradado y mantener legible la hora |

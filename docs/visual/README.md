@@ -18,7 +18,13 @@ src/design/
     navbar.tsx           isotipo · switch Esta sala / Otras salas · botón de ajustes
     settings-drawer.tsx  menú lateral: tema claro/oscuro/sistema y acceso Admin
     code-slots.tsx       entrada de código (React Bits portado a Reanimated)
-    segmented-switch.tsx, glass-icon-button.tsx, brand-mark.tsx
+    this-room-view.tsx   pantalla "Esta sala": estado · hora + foto · línea de tiempo
+    room-status-hero.tsx nombre de la sala + estado (verde / naranja / rojo) con resplandor
+    room-clock.tsx       reloj grande con cifras tabulares
+    room-photo/          foto con fundido y halo desenfocado (web: CSS · nativo: Skia)
+    day-timeline.tsx     línea del día; al tocar un bloque muestra quién reservó y a qué hora
+    segmented-switch.tsx, glass-icon-button.tsx, brand-mark.tsx, pulse-dot.tsx
+  room-photos.ts  foto de cada sala por correo (placeholder de Unsplash por ahora)
   lab/           solo para el laboratorio: catálogo y vistas de configuración
 src/app/lab/     laboratorio visual → ruta /lab
 docs/visual/     conceptualización y decisiones
@@ -55,6 +61,9 @@ npx expo start --web
   `BlurTargetView` de `AppBackground` (Android 12+; en versiones anteriores se ve el velo sin blur).
 - **Código admin:** `src/utils/admin.ts`. Vive en el bundle: frena cambios casuales en el kiosco,
   no es seguridad real. Para endurecerlo, verificar en el backend con la misma firma.
+- **Estado de la sala** (`src/utils/room-status.ts`): Disponible · Por ocuparse (reunión en
+  ≤ 15 min, `SOON_MINUTES`) · Ocupada. Reuniones encadenadas cuentan como una sola ocupación.
+- **Escenas del lab:** las entradas con `scenes` simulan la hora (ver `useLabScene`).
 - Shared values: usar `.set()` / `.get()` fuera de worklets (lo exige el lint del React Compiler).
 - Skia y expo-blur son módulos nativos: la APK hay que volver a generarla (`eas build`) para que lo incluya.
 - `app.json` → `orientation: "default"` (antes `portrait`) para permitir rotar la tablet.

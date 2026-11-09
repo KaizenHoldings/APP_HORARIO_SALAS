@@ -33,10 +33,11 @@ export const palette = {
   },
 } as const;
 
-/** Señales de estado de la sala. */
+/** Señales de estado de la sala: verde libre, naranja por ocuparse, rojo ocupada. */
 export const status = {
   available: { main: '#34C759', textLight: '#15803D', textDark: '#4ADE80' },
-  occupied: { main: '#FF3B30', textLight: '#B91C1C', textDark: '#F87171' },
+  soon: { main: '#FF9F0A', textLight: '#C2410C', textDark: '#FFB340' },
+  occupied: { main: '#FF3B30', textLight: '#B91C1C', textDark: '#FF6B61' },
   live: { main: '#007AFF', textLight: '#007AFF', textDark: '#0A84FF' },
 } as const;
 
