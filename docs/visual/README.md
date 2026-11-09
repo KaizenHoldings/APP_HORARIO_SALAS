@@ -7,33 +7,41 @@ y `src/components/feature-carousel.tsx`).
 
 ```
 src/design/
-  tokens/        colores, tipografía, espaciado/radios y motion de la nueva visual
-  hooks/         use-visual-theme (paleta según esquema claro/oscuro)
-  components/    componentes nuevos, uno por archivo
-  catalog.tsx    registro de componentes para el laboratorio
-src/app/lab/     laboratorio visual → ruta /lab (o /lab?c=<id>)
+  tokens/        colores, tipografía, espaciado/radios, motion y fondo (background.ts)
+  theme/         VisualThemeProvider: fuerza claro/oscuro (o sigue al sistema)
+  hooks/         use-visual-theme (paleta según el esquema activo)
+  components/    componentes de la nueva visual, uno por archivo o carpeta
+    app-background.tsx   fondo base de todas las pantallas
+    grainient/           degradado animado (web: WebGL2 · nativo: Skia)
+  lab/           solo para el laboratorio: catálogo y vistas de configuración
+src/app/lab/     laboratorio visual → ruta /lab
 docs/visual/     conceptualización y decisiones
 ```
 
 ## Reglas
 
 - La nueva capa **no importa** de `@/constants/theme` ni de componentes antiguos; solo de `@/design/*`.
-  Así se puede reemplazar la visual actual al final sin arrastrar dependencias.
-- Cada componente nuevo se registra en `src/design/catalog.tsx` con su `Preview` y un estado
+- Cada componente se revisa en `/lab`, **siempre sobre `AppBackground`**, en claro y oscuro,
+  horizontal (principal) y vertical.
+- Cada componente nuevo se registra en `src/design/lab/catalog.tsx` con su `Preview` y un estado
   (`idea` → `en-progreso` → `listo`).
 - La lógica de datos (API, storage, reloj) se reutiliza desde `src/utils` y `src/types`.
-- Restricciones de DESIGN.md y PRODUCT.md siguen vigentes salvo que las cambiemos aquí:
-  legibilidad a distancia, sin tarjetas anidadas, cifras tabulares, resiliencia sin red.
 
-## Flujo por componente
-
-1. Definir intención y variantes en `concept.md`.
-2. Crear `src/design/components/<nombre>.tsx` usando solo tokens.
-3. Registrarlo en el catálogo y revisarlo en `/lab` (claro/oscuro, tablet/móvil).
-4. Cuando el conjunto esté completo, montarlo en una pantalla nueva y retirar la anterior.
-
-## Ver el laboratorio
+## Laboratorio
 
 ```bash
-npx expo start --web   # abrir /lab
+npx expo start --web
 ```
+
+- `/lab` — abre el catálogo
+- `/lab?c=background&scheme=dark` — abre un componente con el esquema forzado (`light` | `dark`)
+- En tablet: `salastablet://lab` (deep link) con una build de desarrollo.
+
+## Notas de plataforma
+
+- **Grainient** usa dos implementaciones con el mismo shader:
+  `grainient.web.tsx` (WebGL2, original de React Bits) y `grainient.tsx` (SkSL con
+  `@shopify/react-native-skia`). Si se toca el shader, hay que cambiar ambos.
+- En nativo el shader se calcula a media resolución (`resolution` = 0.5) para no cargar la GPU.
+- Skia es un módulo nativo: la APK hay que volver a generarla (`eas build`) para que lo incluya.
+- `app.json` → `orientation: "default"` (antes `portrait`) para permitir rotar la tablet.

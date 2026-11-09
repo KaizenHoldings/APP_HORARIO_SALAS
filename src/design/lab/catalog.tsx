@@ -1,12 +1,13 @@
 import type { ComponentType } from 'react';
 
-import { TokensPreview } from '@/design/components/tokens-preview';
+import { BackgroundPreview } from './background-preview';
+import { TokensPreview } from './tokens-preview';
 
 /**
  * Catálogo del laboratorio visual (ruta `/lab`).
  *
- * Cada componente nuevo se registra aquí con una vista previa para poder
- * revisarlo de forma aislada, sin pasar por la pantalla principal.
+ * Todo el laboratorio se dibuja sobre `AppBackground`, así cada componente se revisa
+ * en su entorno real. Cada entrada se puede ver en claro y oscuro desde la barra superior.
  */
 export type CatalogStatus = 'idea' | 'en-progreso' | 'listo';
 
@@ -19,6 +20,13 @@ export interface CatalogEntry {
 }
 
 export const catalog: CatalogEntry[] = [
+  {
+    id: 'background',
+    title: 'Fondo',
+    description: 'Grainient animado (React Bits): navy → azul → hielo.',
+    status: 'en-progreso',
+    Preview: BackgroundPreview,
+  },
   {
     id: 'tokens',
     title: 'Tokens',
