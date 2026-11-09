@@ -9,6 +9,7 @@ import { AppBackground } from '@/design/components/app-background';
 import { useVisualTheme } from '@/design/hooks/use-visual-theme';
 import { catalog, type CatalogEntry } from '@/design/lab/catalog';
 import { LabSceneContext } from '@/design/lab/lab-scene';
+import { KioskSettingsProvider } from '@/design/settings/kiosk-settings';
 import { type ThemePreference, VisualThemeProvider } from '@/design/theme/visual-theme';
 import { radius, space, type } from '@/design/tokens';
 
@@ -42,6 +43,7 @@ export default function LabScreen() {
 
   return (
     <VisualThemeProvider initial={initial} persist={false}>
+      <KioskSettingsProvider persist={false}>
       <LabSceneContext.Provider value={scene}>
         <AppBackground>
           {selected ? <Stage entry={selected} collapsed={collapsed} /> : null}
@@ -59,6 +61,7 @@ export default function LabScreen() {
           )}
         </AppBackground>
       </LabSceneContext.Provider>
+      </KioskSettingsProvider>
     </VisualThemeProvider>
   );
 }

@@ -19,7 +19,11 @@
             }
         },
         "production": {
-            "autoIncrement": true
+            "autoIncrement": true,
+            "environment": "production",
+            "env": {
+                "EXPO_PUBLIC_API_URL": "http://10.26.102.2:8000"
+            }
         }
     },
     "submit": {

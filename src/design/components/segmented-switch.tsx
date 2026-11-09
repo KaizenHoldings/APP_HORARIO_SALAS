@@ -13,7 +13,7 @@ import Animated, {
 
 import { GlassSurface } from '@/design/components/glass-surface';
 import { useVisualTheme } from '@/design/hooks/use-visual-theme';
-import { radius, type } from '@/design/tokens';
+import { font, radius, type } from '@/design/tokens';
 
 export interface SegmentOption<T extends string> {
   id: T;
@@ -155,5 +155,5 @@ const styles = StyleSheet.create({
     shadowRadius: 10,
   },
   segment: { flex: 1, alignItems: 'center', justifyContent: 'center', paddingHorizontal: 6 },
-  label: { fontSize: 15, fontWeight: '600', letterSpacing: -0.1 },
+  label: { fontSize: 15, ...font.medium },
 });

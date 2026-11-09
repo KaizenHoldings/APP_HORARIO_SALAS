@@ -28,6 +28,8 @@ import Animated, {
   withTiming,
 } from 'react-native-reanimated';
 
+import { font, numbers } from '@/design/tokens/typography';
+
 export type CodeSlotsStatus = 'idle' | 'success' | 'error';
 
 export interface CodeSlotsProps {
@@ -437,8 +439,8 @@ const styles = StyleSheet.create({
   digit: {
     ...FILL,
     textAlign: 'center',
-    fontWeight: '600',
-    fontVariant: ['tabular-nums'],
+    ...font.medium,
+    ...numbers,
   },
   wash: { position: 'absolute', top: 0, bottom: 0 },
   center: { ...FILL, alignItems: 'center', justifyContent: 'center' },

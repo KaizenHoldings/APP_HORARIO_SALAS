@@ -1,7 +1,7 @@
 # Nueva visual — espacio de trabajo
 
-Rama de trabajo: `claude/nueva-visual` (la visual actual sigue intacta en `src/app/index.tsx`
-y `src/components/feature-carousel.tsx`).
+Rama de trabajo: `claude/nueva-visual`. La nueva visual es la pantalla principal (`src/app/index.tsx`);
+la pantalla anterior quedó en `src/legacy/` como referencia. Despliegue: `docs/DEPLOY.md`.
 
 ## Estructura
 

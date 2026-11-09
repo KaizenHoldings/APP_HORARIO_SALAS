@@ -18,6 +18,7 @@ import Animated, {
 } from 'react-native-reanimated';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
+import { AdminConsole, type AdminRoomInfo } from '@/design/components/admin-console';
 import { CodeSlots, type CodeSlotsStatus } from '@/design/components/code-slots';
 import { GlassSurface } from '@/design/components/glass-surface';
 import { SegmentedSwitch } from '@/design/components/segmented-switch';
@@ -44,17 +45,21 @@ export function SettingsDrawer({
   open,
   onClose,
   onAdminUnlocked,
+  rooms = [],
 }: {
   open: boolean;
   onClose: () => void;
   onAdminUnlocked?: () => void;
+  /** Salas del sistema para la consola de administración. */
+  rooms?: AdminRoomInfo[];
 }) {
   const { glass } = useVisualTheme();
   const { width } = useWindowDimensions();
   const [page, setPage] = useState<Page>('main');
   const [direction, setDirection] = useState<1 | -1>(1);
   const insets = useSafeAreaInsets();
-  const panelWidth = Math.min(400, width - space.md * 2);
+  // La consola de administración necesita más ancho.
+  const panelWidth = Math.min(page === 'unlocked' ? 560 : 400, width - space.md * 2);
 
   const go = (next: Page) => {
     setDirection(ORDER[next] > ORDER[page] ? 1 : -1);
@@ -124,7 +129,7 @@ export function SettingsDrawer({
                   }}
                 />
               ) : (
-                <UnlockedPage onClose={onClose} />
+                <ConsolePage onClose={onClose} rooms={rooms} />
               )}
             </Animated.View>
           </GlassSurface>
@@ -240,18 +245,11 @@ function AdminPage({ onBack, onUnlocked }: { onBack: () => void; onUnlocked: () 
   );
 }
 
-function UnlockedPage({ onClose }: { onClose: () => void }) {
-  const { colors } = useVisualTheme();
+function ConsolePage({ onClose, rooms }: { onClose: () => void; rooms: AdminRoomInfo[] }) {
   return (
     <>
-      <Header title="Admin" trailing={<RoundButton icon="close" label="Cerrar" onPress={onClose} />} />
-      <View style={styles.codeBlock}>
-        <Ionicons name="shield-checkmark-outline" size={40} color={colors.ink} />
-        <Text style={[type.heading, { color: colors.ink }]}>Modo administrador</Text>
-        <Text style={[type.caption, styles.center, { color: colors.inkSecondary }]}>
-          Aquí irán las opciones de administración (sala asignada a esta tablet, etc.).
-        </Text>
-      </View>
+      <Header title="Administración" trailing={<RoundButton icon="close" label="Cerrar" onPress={onClose} />} />
+      <AdminConsole rooms={rooms} />
     </>
   );
 }

@@ -25,7 +25,7 @@ import Animated, {
 
 import { GlassSurface } from '@/design/components/glass-surface';
 import { useVisualTheme } from '@/design/hooks/use-visual-theme';
-import { space } from '@/design/tokens';
+import { font, numbers, space } from '@/design/tokens';
 import { formatDuration, formatMinutes, type ScheduleBlock } from '@/utils/room-status';
 
 const BAR = 10;
@@ -33,26 +33,16 @@ const BAR_ACTIVE = 14;
 const HIT = 44;
 const GAP = 10;
 const CARD_W = 300;
-const HEADER_H = 48;
 const AUTO_CLOSE_MS = 8000;
 const EASE = Easing.bezier(0.23, 1, 0.32, 1);
 const GROW = { damping: 15, stiffness: 260, mass: 0.7 };
 
-/** Degradados de relleno: pasado (lavanda → azul, "completado") y bloque en curso por estado. */
-const FILL = {
-  past: ['#C4B5FD', '#60A5FA'] as const,
-  busy: ['#FF8A80', '#FF3B30'] as const,
-  free: ['#86EFAC', '#22C55E'] as const,
-};
-
 const shortTime = (m: number) => formatMinutes(m).replace(/ (AM|PM)$/, '');
 
 /**
- * Línea de tiempo del día, estilo barras de progreso (ref. en docs/visual/concept.md):
- * - una píldora por bloque, con ancho proporcional a su duración;
- * - lo pasado, lleno en degradado; el bloque actual se llena hasta "ahora" en el color
- *   de su estado; lo que viene es pista gris (libre) o roja translúcida (reservado);
- * - al tocar un bloque crece y aparece una tarjeta de vidrio con quién reservó y a qué hora.
+ * Línea de tiempo del día (estilo barras de progreso): una píldora por bloque, roja si está
+ * reservada y azul si está libre. Lo pasado va lleno, el bloque actual se llena hasta "ahora"
+ * y lo que viene es una pista translúcida. Al tocar un bloque crece y muestra quién reservó.
  */
 export function DayTimeline({
   blocks,
@@ -64,7 +54,7 @@ export function DayTimeline({
   now: number;
   style?: StyleProp<ViewStyle>;
 }) {
-  const { colors } = useVisualTheme();
+  const { colors, custom } = useVisualTheme();
   const [width, setWidth] = useState(0);
   const [selectedId, setSelectedId] = useState<string | null>(null);
 
@@ -81,20 +71,19 @@ export function DayTimeline({
   const span = Math.max(1, dayEnd - dayStart);
   // Reparte el ancho descontando los huecos entre píldoras.
   const usable = Math.max(0, width - GAP * (blocks.length - 1));
+  const widthOf = (b: ScheduleBlock) => ((b.end - b.start) / span) * usable;
   const lefts: number[] = [];
   let acc = 0;
   for (const b of blocks) {
     lefts.push(acc);
-    acc += ((b.end - b.start) / span) * usable + GAP;
+    acc += widthOf(b) + GAP;
   }
-  const widthOf = (b: ScheduleBlock) => ((b.end - b.start) / span) * usable;
   const xOf = (m: number) => {
     const i = blocks.findIndex((b) => m >= b.start && m <= b.end);
     if (i < 0) return m < dayStart ? 0 : width;
     return lefts[i] + ((m - blocks[i].start) / (blocks[i].end - blocks[i].start)) * widthOf(blocks[i]);
   };
 
-  const meetings = blocks.filter((b) => b.busy).length;
   const nowInRange = now >= dayStart && now <= dayEnd;
   const selectedIndex = blocks.findIndex((b) => b.id === selectedId);
   const selected = selectedIndex >= 0 ? blocks[selectedIndex] : null;
@@ -112,17 +101,9 @@ export function DayTimeline({
         accessible={false}
       />
 
-      <View style={styles.header} pointerEvents="none">
-        <View style={[styles.tile, { backgroundColor: colors.ink + '14' }]}>
-          <Ionicons name="calendar" size={20} color={colors.ink} />
-        </View>
-        <View style={styles.headerCenter}>
-          <Ionicons name="time-outline" size={18} color={colors.ink} />
-          <Text style={[styles.headerTitle, { color: colors.ink }]}>Agenda de hoy</Text>
-        </View>
-        <Text style={[styles.headerRight, { color: colors.ink }]}>
-          {meetings === 0 ? 'Sin reuniones' : `${meetings} ${meetings === 1 ? 'reunión' : 'reuniones'}`}
-        </Text>
+      <View style={styles.legend} pointerEvents="none">
+        <LegendItem colors={custom.bars.busy} label="Ocupada" />
+        <LegendItem colors={custom.bars.free} label="Disponible" />
       </View>
 
       <View style={styles.trackArea} onLayout={onLayout}>
@@ -172,6 +153,20 @@ export function DayTimeline({
   );
 }
 
+export function LegendItem({ colors: g, label, solid }: { colors?: [string, string]; label: string; solid?: string }) {
+  const { colors } = useVisualTheme();
+  return (
+    <View style={styles.legendItem}>
+      {solid ? (
+        <View style={[styles.legendDot, { backgroundColor: solid }]} />
+      ) : (
+        <LinearGradient colors={g ?? ['#000', '#000']} start={{ x: 0, y: 0 }} end={{ x: 1, y: 1 }} style={styles.legendDot} />
+      )}
+      <Text style={[styles.legendLabel, { color: colors.inkSecondary }]}>{label}</Text>
+    </View>
+  );
+}
+
 function Segment({
   block,
   index,
@@ -191,7 +186,7 @@ function Segment({
   dimmed: boolean;
   onPress: () => void;
 }) {
-  const { colors, status } = useVisualTheme();
+  const { custom } = useVisualTheme();
   const reduce = useReducedMotion();
   const thickness = useSharedValue(BAR);
   const progress = Math.min(1, Math.max(0, (now - block.start) / (block.end - block.start)));
@@ -205,7 +200,9 @@ function Segment({
   // El relleno "carga" al entrar y avanza con el reloj.
   useEffect(() => {
     fillRatio.set(
-      reduce ? progress : withDelay(300 + index * 90, withTiming(progress, { duration: 700, easing: EASE })),
+      reduce
+        ? progress
+        : withDelay(300 + index * 90, withTiming(progress, { duration: 700, easing: EASE })),
     );
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [progress]);
@@ -216,10 +213,7 @@ function Segment({
   }));
   const fillStyle = useAnimatedStyle(() => ({ width: `${fillRatio.value * 100}%` }));
 
-  const track = block.busy
-    ? { backgroundColor: status.occupied.main, opacity: 0.45 }
-    : { backgroundColor: colors.ink, opacity: 0.12 };
-  const gradient = isPast ? FILL.past : block.busy ? FILL.busy : FILL.free;
+  const gradient = block.busy ? custom.bars.busy : custom.bars.free;
   const label = block.busy
     ? `${block.title}, ${formatMinutes(block.start)} a ${formatMinutes(block.end)}`
     : `Libre de ${formatMinutes(block.start)} a ${formatMinutes(block.end)}`;
@@ -227,11 +221,9 @@ function Segment({
   return (
     <Animated.View
       entering={FadeIn.duration(400).delay(200 + index * 60)}
-      style={[
-        styles.segment,
-        { left, width, opacity: dimmed ? 0.4 : 1 },
-        { transitionProperty: 'opacity', transitionDuration: 220 },
-      ]}>
+      style={[styles.segment, { left, width }]}>
+      {/* La opacidad de "atenuado" va en una vista interior para no chocar con la animación de entrada. */}
+      <View style={[styles.hit, { opacity: dimmed ? 0.4 : 1 }]}>
       <Pressable
         accessibilityRole="button"
         accessibilityLabel={label}
@@ -239,7 +231,14 @@ function Segment({
         onPress={onPress}
         style={styles.hit}>
         <Animated.View style={[styles.bar, barStyle]}>
-          {!isPast ? <View style={[StyleSheet.absoluteFill, track]} /> : null}
+          {!isPast ? (
+            <LinearGradient
+              colors={gradient}
+              start={{ x: 0, y: 0.5 }}
+              end={{ x: 1, y: 0.5 }}
+              style={[StyleSheet.absoluteFill, { opacity: block.busy ? 0.3 : 0.28 }]}
+            />
+          ) : null}
           <Animated.View style={[styles.fill, fillStyle]}>
             <LinearGradient
               colors={gradient}
@@ -250,6 +249,7 @@ function Segment({
           </Animated.View>
         </Animated.View>
       </Pressable>
+      </View>
     </Animated.View>
   );
 }
@@ -263,8 +263,8 @@ function DetailCard({
   left: number;
   onClose: () => void;
 }) {
-  const { colors, status, isDark } = useVisualTheme();
-  const tone = block.busy ? status.occupied : status.available;
+  const { colors, status, custom, isDark } = useVisualTheme();
+  const tone = block.busy ? status.occupied : custom.free;
   const ink = isDark ? tone.textDark : tone.textLight;
   const range = `${formatMinutes(block.start)} – ${formatMinutes(block.end)}`;
   const duration = formatDuration(block.end - block.start);
@@ -314,36 +314,29 @@ function DetailCard({
 }
 
 const styles = StyleSheet.create({
-  root: { gap: space.sm },
-  header: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    marginBottom: space.xs,
-  },
-  tile: { width: 48, height: 48, borderRadius: 16, alignItems: 'center', justifyContent: 'center' },
-  headerCenter: { flexDirection: 'row', alignItems: 'center', gap: space.sm },
-  headerTitle: { fontSize: 20, fontWeight: '600', letterSpacing: -0.3 },
-  headerRight: { fontSize: 17, fontWeight: '600', letterSpacing: -0.2 },
+  root: {},
+  legend: { flexDirection: 'row', justifyContent: 'flex-end', gap: 20, marginBottom: 10 },
+  legendItem: { flexDirection: 'row', alignItems: 'center', gap: 8 },
+  legendDot: { width: 10, height: 10, borderRadius: 5 },
+  legendLabel: { fontSize: 12, ...font.medium, letterSpacing: 0.3 },
   trackArea: { height: HIT },
   segment: { position: 'absolute', top: 0, height: HIT },
   hit: { flex: 1, justifyContent: 'center' },
   bar: { overflow: 'hidden' },
-  fill: { position: 'absolute', left: 0, top: 0, bottom: 0, borderRadius: BAR_ACTIVE, overflow: 'hidden' },
-  now: { position: 'absolute', top: -6, width: 56, alignItems: 'center' },
-  nowLabel: { fontSize: 11, fontWeight: '700', letterSpacing: 0.3, fontVariant: ['tabular-nums'] },
-  ends: { flexDirection: 'row', justifyContent: 'space-between' },
-  endLabel: { fontSize: 11, fontWeight: '600', letterSpacing: 0.3, fontVariant: ['tabular-nums'] },
-  // Por encima de la fila "Agenda de hoy" para no taparla.
-  card: { position: 'absolute', bottom: HIT + HEADER_H + 12, width: CARD_W },
+  fill: { position: 'absolute', left: 0, top: 0, bottom: 0, overflow: 'hidden', borderRadius: BAR_ACTIVE },
+  now: { position: 'absolute', top: -4, width: 56, alignItems: 'center' },
+  nowLabel: { fontSize: 11, ...font.medium, ...numbers, letterSpacing: 0.3 },
+  ends: { flexDirection: 'row', justifyContent: 'space-between', marginTop: 6 },
+  endLabel: { fontSize: 11, ...font.medium, ...numbers, letterSpacing: 0.3 },
+  card: { position: 'absolute', bottom: HIT + 12, width: CARD_W },
   cardContent: { padding: space.md, gap: space.sm },
   cardHead: { flexDirection: 'row', alignItems: 'center', gap: space.sm },
   cardDot: { width: 8, height: 8, borderRadius: 4 },
-  cardState: { fontSize: 13, fontWeight: '700', letterSpacing: 0.3, flex: 1 },
-  cardRange: { fontSize: 13, fontWeight: '600', fontVariant: ['tabular-nums'] },
-  cardTitle: { fontSize: 19, lineHeight: 24, fontWeight: '700', letterSpacing: -0.3 },
+  cardState: { fontSize: 13, ...font.medium, letterSpacing: 0.3, flex: 1 },
+  cardRange: { fontSize: 13, ...font.medium, ...numbers },
+  cardTitle: { fontSize: 19, lineHeight: 24, ...font.medium, letterSpacing: -0.1 },
   cardRow: { flexDirection: 'row', alignItems: 'center', gap: space.sm },
   cardWho: { flex: 1 },
-  cardName: { fontSize: 15, fontWeight: '600' },
-  cardMeta: { fontSize: 13, fontWeight: '500' },
+  cardName: { fontSize: 15, ...font.medium },
+  cardMeta: { fontSize: 13, ...font.regular },
 });

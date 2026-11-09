@@ -5,7 +5,7 @@ import Svg, { Defs, Ellipse, RadialGradient, Stop } from 'react-native-svg';
 
 import { PulseDot } from '@/design/components/pulse-dot';
 import { useVisualTheme } from '@/design/hooks/use-visual-theme';
-import { space } from '@/design/tokens';
+import { font, space } from '@/design/tokens';
 import { formatMinutes, type RoomState, type RoomStatusInfo } from '@/utils/room-status';
 
 export const STATE_LABEL: Record<RoomState, string> = {
@@ -118,12 +118,12 @@ function Glow({ color, strength }: { color: string; strength: number }) {
 const styles = StyleSheet.create({
   root: { gap: space.md, justifyContent: 'center' },
   glow: { position: 'absolute', left: '-35%', top: '-45%', width: '150%', height: '190%' },
-  name: { fontSize: 64, lineHeight: 68, fontWeight: '800', letterSpacing: -2 },
-  nameCompact: { fontSize: 42, lineHeight: 46, letterSpacing: -1.2 },
+  name: { fontSize: 64, lineHeight: 70, ...font.light, letterSpacing: -1 },
+  nameCompact: { fontSize: 44, lineHeight: 50, letterSpacing: -0.6 },
   stateRow: { flexDirection: 'row', alignItems: 'center', gap: space.md },
-  state: { fontSize: 40, lineHeight: 46, fontWeight: '700', letterSpacing: -1 },
+  state: { fontSize: 40, lineHeight: 46, ...font.regular, letterSpacing: -0.5 },
   stateCompact: { fontSize: 30, lineHeight: 36 },
   detail: { gap: space.xs, paddingTop: space.xs },
-  primary: { fontSize: 22, lineHeight: 28, fontWeight: '600', letterSpacing: -0.3 },
-  secondary: { fontSize: 17, lineHeight: 22, fontWeight: '500' },
+  primary: { fontSize: 22, lineHeight: 28, ...font.regular, letterSpacing: -0.1 },
+  secondary: { fontSize: 17, lineHeight: 22, ...font.regular },
 });

@@ -122,3 +122,12 @@ export function formatDuration(minutes: number): string {
 
 /** Minutos desde las 00:00 de una fecha. */
 export const minutesOfDay = (date: Date) => date.getHours() * 60 + date.getMinutes();
+
+/** Frase corta del estado para listas y tarjetas ("Libre hasta las 1:00 PM"…). */
+export function statusLine(info: RoomStatusInfo): string {
+  if (info.state === 'occupied') return `Ocupada hasta las ${formatMinutes(info.until ?? 0)}`;
+  if (info.state === 'soon' && info.until !== null) {
+    return `Reunión a las ${formatMinutes(info.until)} · en ${info.minutesLeft} min`;
+  }
+  return info.until !== null ? `Libre hasta las ${formatMinutes(info.until)}` : 'Libre el resto del día';
+}

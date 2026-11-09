@@ -4,6 +4,7 @@ import Animated, { FadeIn, FadeOut } from 'react-native-reanimated';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
 import { Navbar, type RoomView } from '@/design/components/navbar';
+import type { AdminRoomInfo } from '@/design/components/admin-console';
 import { SettingsDrawer } from '@/design/components/settings-drawer';
 
 /** Sin toques durante este tiempo, la pantalla vuelve a "Esta sala" y cierra el menú. */
@@ -19,10 +20,13 @@ export function AppFrame({
   renderView,
   initialView = 'this',
   onAdminUnlocked,
+  adminRooms,
 }: {
   renderView: (view: RoomView) => ReactNode;
   initialView?: RoomView;
   onAdminUnlocked?: () => void;
+  /** Salas del sistema para la consola de administración. */
+  adminRooms?: AdminRoomInfo[];
 }) {
   const [view, setView] = useState<RoomView>(initialView);
   const [menuOpen, setMenuOpen] = useState(false);
@@ -70,6 +74,7 @@ export function AppFrame({
         open={menuOpen}
         onClose={() => setMenuOpen(false)}
         onAdminUnlocked={onAdminUnlocked}
+        rooms={adminRooms}
       />
     </View>
   );

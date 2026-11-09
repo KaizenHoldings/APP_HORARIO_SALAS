@@ -8,7 +8,7 @@ import Animated, {
   withTiming,
 } from 'react-native-reanimated';
 
-import { useVisualTheme } from '@/design/hooks/use-visual-theme';
+import { font, numbers } from '@/design/tokens';
 
 const EASE = Easing.bezier(0.23, 1, 0.32, 1);
 
@@ -21,9 +21,11 @@ function parts(date: Date) {
   return { time, period, day: day.charAt(0).toUpperCase() + day.slice(1) };
 }
 
-/** Reloj grande con cifras tabulares; cada cambio de minuto entra con un leve deslizamiento. */
-export function RoomClock({ now, align = 'right' }: { now: Date; align?: 'left' | 'right' }) {
-  const { colors, isDark } = useVisualTheme();
+/**
+ * Hora y fecha en una pastilla oscura translúcida (va sobre la foto de la sala, así se lee
+ * igual en claro y oscuro). Cada cambio de minuto entra con un leve deslizamiento.
+ */
+export function RoomClock({ now }: { now: Date }) {
   const reduce = useReducedMotion();
   const { time, period, day } = parts(now);
   const t = useSharedValue(1);
@@ -39,40 +41,39 @@ export function RoomClock({ now, align = 'right' }: { now: Date; align?: 'left' 
     transform: [{ translateY: (1 - t.value) * 8 }],
   }));
 
-  const shadow = isDark ? styles.shadowDark : styles.shadowLight;
-  const end = align === 'right';
-
   return (
-    <View style={[styles.root, { alignItems: end ? 'flex-end' : 'flex-start' }]}>
-      <Animated.View style={[styles.row, tick]} accessibilityLabel={`${time} ${period}`}>
-        <Text style={[styles.time, shadow, { color: colors.ink }]}>{time}</Text>
-        <Text style={[styles.period, shadow, { color: colors.inkSecondary }]}>{period}</Text>
+    <View style={styles.pill} accessibilityLabel={`${time} ${period}, ${day}`}>
+      <Animated.View style={[styles.row, tick]}>
+        <Text style={styles.time}>{time}</Text>
+        <Text style={styles.period}>{period}</Text>
       </Animated.View>
-      <Text style={[styles.date, shadow, { color: colors.inkSecondary }]}>{day}</Text>
+      <Text style={styles.date}>{day}</Text>
     </View>
   );
 }
 
 const styles = StyleSheet.create({
-  root: { gap: 2 },
-  row: { flexDirection: 'row', alignItems: 'baseline', gap: 8 },
-  time: {
-    fontSize: 72,
-    lineHeight: 76,
-    fontWeight: '700',
-    letterSpacing: -2.5,
-    fontVariant: ['tabular-nums'],
+  pill: {
+    paddingTop: 10,
+    paddingBottom: 12,
+    paddingHorizontal: 18,
+    borderRadius: 14,
+    backgroundColor: 'rgba(8,14,28,0.5)',
+    borderWidth: 1,
+    borderColor: 'rgba(255,255,255,0.16)',
   },
-  period: { fontSize: 24, fontWeight: '600', letterSpacing: -0.3 },
-  date: { fontSize: 18, fontWeight: '500' },
-  shadowDark: {
+  row: { flexDirection: 'row', alignItems: 'baseline', gap: 6 },
+  time: {
+    fontSize: 52,
+    lineHeight: 56,
+    ...font.light,
+    ...numbers,
+    letterSpacing: -1,
+    color: '#FFFFFF',
     textShadowColor: 'rgba(0,0,0,0.35)',
-    textShadowRadius: 18,
+    textShadowRadius: 12,
     textShadowOffset: { width: 0, height: 2 },
   },
-  shadowLight: {
-    textShadowColor: 'rgba(255,255,255,0.6)',
-    textShadowRadius: 16,
-    textShadowOffset: { width: 0, height: 1 },
-  },
+  period: { fontSize: 20, ...font.medium, color: 'rgba(255,255,255,0.88)' },
+  date: { fontSize: 15, ...font.regular, color: 'rgba(255,255,255,0.9)' },
 });

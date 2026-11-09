@@ -14,16 +14,15 @@ const VIEW_OPTIONS: { id: RoomView; label: string }[] = [
   { id: 'others', label: 'Otras salas' },
 ];
 
-const SIDE = 48;
 const enter = (i: number) =>
   FadeInDown.duration(560)
     .delay(120 + i * 90)
     .easing(Easing.bezier(0.23, 1, 0.32, 1));
 
 /**
- * Barra superior flotante: isotipo a la izquierda, switch "Esta sala / Otras salas" centrado
- * y botón de ajustes a la derecha. Los laterales miden lo mismo para que el switch quede
- * siempre centrado en cualquier orientación.
+ * Barra superior flotante: isotipo (Admin → Marca) a la izquierda, switch "Esta sala / Otras
+ * salas" centrado y botón de ajustes a la derecha, alineados a la retícula (useGutter).
+ * Los laterales ocupan lo mismo para que el switch quede siempre centrado.
  */
 export function Navbar({
   view,
@@ -49,7 +48,7 @@ export function Navbar({
       accessibilityRole="header"
       pointerEvents="box-none">
       <Animated.View entering={enter(0)} style={styles.side}>
-        <BrandMark size={34} />
+        <BrandMark size={44} />
       </Animated.View>
 
       <Animated.View entering={enter(1)} style={styles.center}>
@@ -79,11 +78,11 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     gap: space.md,
-    paddingTop: space.lg,
+    paddingTop: space.xl,
     paddingBottom: space.md,
   },
   barCompact: { gap: space.sm },
-  side: { width: SIDE, justifyContent: 'center' },
+  side: { flex: 1, justifyContent: 'center', alignItems: 'flex-start' },
   end: { alignItems: 'flex-end' },
-  center: { flex: 1, alignItems: 'center' },
+  center: { alignItems: 'center' },
 });

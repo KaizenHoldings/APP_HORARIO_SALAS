@@ -25,19 +25,21 @@ export function AppBackground({
   children?: ReactNode;
   style?: StyleProp<ViewStyle>;
 }) {
-  const { scheme } = useVisualTheme();
+  const { scheme, custom } = useVisualTheme();
   const targetRef = useRef<View | null>(null);
   const { fallback, ...grainient } = background[scheme];
+  // Tono de fondo personalizado (Admin → Colores); null = colores originales.
+  const colors = custom.background?.[scheme] ?? grainient.colors;
 
   return (
     <View style={[styles.root, { backgroundColor: fallback }, style]}>
       <BlurTargetView ref={targetRef} style={StyleSheet.absoluteFill}>
         <Animated.View
-          key={scheme}
+          key={`${scheme}-${colors.join()}`}
           entering={FadeIn.duration(700)}
           exiting={FadeOut.duration(700)}
           style={StyleSheet.absoluteFill}>
-          <Grainient {...grainient} style={StyleSheet.absoluteFill} />
+          <Grainient {...grainient} colors={colors} style={StyleSheet.absoluteFill} />
         </Animated.View>
       </BlurTargetView>
       <BlurTargetContext.Provider value={targetRef}>{children}</BlurTargetContext.Provider>
