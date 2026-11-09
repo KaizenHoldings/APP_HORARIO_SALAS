@@ -31,3 +31,6 @@ vidrio con bordes finos y brillantes, texto blanco nítido.
 | 2026-11-09 | Fondo: Grainient (React Bits) con `#120f17 #0a192a #12509a #1676f9 #aadffe`, angle 55, flow 0.8, silk 0.35, grain 0.08, speed 2.35, sin interacción | Define el ambiente azul de las referencias; la tablet es kiosco, no hace falta interacción |
 | 2026-11-09 | Modo claro del fondo: misma rampa con `lightMode` (bases a blanco, tintes aclarados) | Mantener una sola fuente de color para ambos esquemas |
 | 2026-11-09 | Grainient nativo con Skia (SkSL) y web con WebGL2 | El original usa WebGL del DOM, que no existe en Android/iOS |
+| 2026-11-09 | Navbar flotante sin barra de fondo: isotipo · switch de vidrio centrado · botón de ajustes circular | Minimalismo; los laterales miden igual para centrar el switch en cualquier orientación |
+| 2026-11-09 | Ajustes en panel de vidrio flotante desde la derecha, con páginas animadas (Ajustes → Admin → Modo admin) | Un solo lugar para tema y acceso admin, sin modales encima de modales |
+| 2026-11-09 | Admin con CodeSlots de 6 dígitos enmascarado; error = vaciado rojo + vibración horizontal; éxito = barrido con check | Feedback claro sin texto largo |

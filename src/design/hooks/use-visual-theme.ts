@@ -1,15 +1,23 @@
 import { useColorScheme } from 'react-native';
 
-import { useSchemeOverride } from '@/design/theme/visual-theme';
-import { palette, status, type Scheme } from '@/design/tokens';
+import { useThemePreference } from '@/design/theme/visual-theme';
+import { glass, palette, status, type Scheme } from '@/design/tokens';
 
 /**
- * Paleta de la nueva visual. Usa el esquema forzado por `VisualThemeProvider`
- * (laboratorio, preferencia guardada) o, si no hay, el del sistema.
+ * Paleta de la nueva visual según la preferencia de `VisualThemeProvider`
+ * ('light' | 'dark' | 'system').
  */
 export function useVisualTheme() {
-  const override = useSchemeOverride();
+  const { preference, setPreference } = useThemePreference();
   const system: Scheme = useColorScheme() === 'dark' ? 'dark' : 'light';
-  const scheme = override ?? system;
-  return { scheme, isDark: scheme === 'dark', colors: palette[scheme], status };
+  const scheme: Scheme = preference === 'system' ? system : preference;
+  return {
+    scheme,
+    isDark: scheme === 'dark',
+    colors: palette[scheme],
+    glass: glass[scheme],
+    status,
+    preference,
+    setPreference,
+  };
 }
