@@ -47,6 +47,7 @@ npx expo start --web
 
 - `/lab` — abre el catálogo
 - `/lab?c=navbar&scheme=dark` — abre un componente con el esquema inicial (`light` | `dark`)
+- `&lab=0` — abre con la barra del laboratorio plegada (también se pliega con la flecha)
 - En tablet: `salastablet://lab` (deep link) con una build de desarrollo.
 
 ## Notas de plataforma

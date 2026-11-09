@@ -1,4 +1,5 @@
 import { Ionicons } from '@expo/vector-icons';
+import { LinearGradient } from 'expo-linear-gradient';
 import { useEffect, useState } from 'react';
 import {
   type LayoutChangeEvent,
@@ -15,31 +16,43 @@ import Animated, {
   FadeInDown,
   FadeOut,
   useAnimatedStyle,
+  useReducedMotion,
   useSharedValue,
+  withDelay,
   withSpring,
+  withTiming,
 } from 'react-native-reanimated';
 
 import { GlassSurface } from '@/design/components/glass-surface';
-import { PulseDot } from '@/design/components/pulse-dot';
 import { useVisualTheme } from '@/design/hooks/use-visual-theme';
 import { space } from '@/design/tokens';
 import { formatDuration, formatMinutes, type ScheduleBlock } from '@/utils/room-status';
 
-const TRACK = 12;
-const TRACK_ACTIVE = 20;
-const HIT = 48;
-const GAP = 3;
+const BAR = 10;
+const BAR_ACTIVE = 14;
+const HIT = 44;
+const GAP = 10;
 const CARD_W = 300;
+const HEADER_H = 48;
 const AUTO_CLOSE_MS = 8000;
 const EASE = Easing.bezier(0.23, 1, 0.32, 1);
 const GROW = { damping: 15, stiffness: 260, mass: 0.7 };
 
-const hourLabel = (h: number) => `${h % 12 === 0 ? 12 : h % 12} ${h >= 12 ? 'PM' : 'AM'}`;
+/** Degradados de relleno: pasado (lavanda → azul, "completado") y bloque en curso por estado. */
+const FILL = {
+  past: ['#C4B5FD', '#60A5FA'] as const,
+  busy: ['#FF8A80', '#FF3B30'] as const,
+  free: ['#86EFAC', '#22C55E'] as const,
+};
+
+const shortTime = (m: number) => formatMinutes(m).replace(/ (AM|PM)$/, '');
 
 /**
- * Línea de tiempo del día: bloques verdes (libre) y rojos (ocupado), lo ya transcurrido
- * atenuado y un punto "ahora". Al tocar un bloque crece y aparece una tarjeta de vidrio
- * con el detalle (quién reservó y a qué hora). Se cierra sola a los 8 s o al tocar fuera.
+ * Línea de tiempo del día, estilo barras de progreso (ref. en docs/visual/concept.md):
+ * - una píldora por bloque, con ancho proporcional a su duración;
+ * - lo pasado, lleno en degradado; el bloque actual se llena hasta "ahora" en el color
+ *   de su estado; lo que viene es pista gris (libre) o roja translúcida (reservado);
+ * - al tocar un bloque crece y aparece una tarjeta de vidrio con quién reservó y a qué hora.
  */
 export function DayTimeline({
   blocks,
@@ -66,17 +79,25 @@ export function DayTimeline({
   const dayStart = blocks[0].start;
   const dayEnd = blocks[blocks.length - 1].end;
   const span = Math.max(1, dayEnd - dayStart);
-  const x = (m: number) => ((m - dayStart) / span) * width;
+  // Reparte el ancho descontando los huecos entre píldoras.
+  const usable = Math.max(0, width - GAP * (blocks.length - 1));
+  const lefts: number[] = [];
+  let acc = 0;
+  for (const b of blocks) {
+    lefts.push(acc);
+    acc += ((b.end - b.start) / span) * usable + GAP;
+  }
+  const widthOf = (b: ScheduleBlock) => ((b.end - b.start) / span) * usable;
+  const xOf = (m: number) => {
+    const i = blocks.findIndex((b) => m >= b.start && m <= b.end);
+    if (i < 0) return m < dayStart ? 0 : width;
+    return lefts[i] + ((m - blocks[i].start) / (blocks[i].end - blocks[i].start)) * widthOf(blocks[i]);
+  };
 
-  const firstHour = Math.ceil(dayStart / 60);
-  const lastHour = Math.floor(dayEnd / 60);
-  const pxPerHour = (width * 60) / span;
-  const step = pxPerHour < 70 ? 2 : 1;
-  const hours: number[] = [];
-  for (let h = firstHour; h <= lastHour; h += step) hours.push(h);
-
+  const meetings = blocks.filter((b) => b.busy).length;
   const nowInRange = now >= dayStart && now <= dayEnd;
-  const selected = blocks.find((b) => b.id === selectedId) ?? null;
+  const selectedIndex = blocks.findIndex((b) => b.id === selectedId);
+  const selected = selectedIndex >= 0 ? blocks[selectedIndex] : null;
 
   const onLayout = (e: LayoutChangeEvent) => {
     const w = e.nativeEvent.layout.width;
@@ -91,6 +112,19 @@ export function DayTimeline({
         accessible={false}
       />
 
+      <View style={styles.header} pointerEvents="none">
+        <View style={[styles.tile, { backgroundColor: colors.ink + '14' }]}>
+          <Ionicons name="calendar" size={20} color={colors.ink} />
+        </View>
+        <View style={styles.headerCenter}>
+          <Ionicons name="time-outline" size={18} color={colors.ink} />
+          <Text style={[styles.headerTitle, { color: colors.ink }]}>Agenda de hoy</Text>
+        </View>
+        <Text style={[styles.headerRight, { color: colors.ink }]}>
+          {meetings === 0 ? 'Sin reuniones' : `${meetings} ${meetings === 1 ? 'reunión' : 'reuniones'}`}
+        </Text>
+      </View>
+
       <View style={styles.trackArea} onLayout={onLayout}>
         {width > 0
           ? blocks.map((block, i) => (
@@ -98,10 +132,11 @@ export function DayTimeline({
                 key={block.id}
                 block={block}
                 index={i}
-                left={x(block.start)}
-                width={Math.max(2, x(block.end) - x(block.start) - GAP)}
+                left={lefts[i]}
+                width={Math.max(4, widthOf(block))}
                 now={now}
                 selected={block.id === selectedId}
+                dimmed={selectedId !== null && block.id !== selectedId}
                 onPress={() => setSelectedId((id) => (id === block.id ? null : block.id))}
               />
             ))
@@ -109,12 +144,10 @@ export function DayTimeline({
 
         {width > 0 && nowInRange ? (
           <Animated.View
-            entering={FadeIn.duration(500).delay(500)}
+            entering={FadeIn.duration(500).delay(900)}
             pointerEvents="none"
-            style={[styles.now, { left: x(now) - 9 }]}>
-            <View style={[styles.nowRing, { borderColor: colors.ink }]}>
-              <PulseDot color={colors.ink} size={10} />
-            </View>
+            style={[styles.now, { left: xOf(now) - 28 }]}>
+            <Text style={[styles.nowLabel, { color: colors.ink }]}>{shortTime(now)}</Text>
           </Animated.View>
         ) : null}
 
@@ -123,7 +156,7 @@ export function DayTimeline({
             key={selected.id}
             block={selected}
             left={Math.min(
-              Math.max(0, x((selected.start + selected.end) / 2) - CARD_W / 2),
+              Math.max(0, lefts[selectedIndex] + widthOf(selected) / 2 - CARD_W / 2),
               Math.max(0, width - CARD_W),
             )}
             onClose={() => setSelectedId(null)}
@@ -131,19 +164,9 @@ export function DayTimeline({
         ) : null}
       </View>
 
-      <View style={styles.labels} pointerEvents="none">
-        {width > 0
-          ? hours.map((h) => (
-              <Text
-                key={h}
-                style={[
-                  styles.hour,
-                  { left: x(h * 60) - 30, color: colors.inkMuted },
-                ]}>
-                {hourLabel(h)}
-              </Text>
-            ))
-          : null}
+      <View style={styles.ends} pointerEvents="none">
+        <Text style={[styles.endLabel, { color: colors.inkMuted }]}>{formatMinutes(dayStart)}</Text>
+        <Text style={[styles.endLabel, { color: colors.inkMuted }]}>{formatMinutes(dayEnd)}</Text>
       </View>
     </View>
   );
@@ -156,6 +179,7 @@ function Segment({
   width,
   now,
   selected,
+  dimmed,
   onPress,
 }: {
   block: ScheduleBlock;
@@ -164,45 +188,66 @@ function Segment({
   width: number;
   now: number;
   selected: boolean;
+  dimmed: boolean;
   onPress: () => void;
 }) {
-  const { status } = useVisualTheme();
-  const thickness = useSharedValue(TRACK);
+  const { colors, status } = useVisualTheme();
+  const reduce = useReducedMotion();
+  const thickness = useSharedValue(BAR);
+  const progress = Math.min(1, Math.max(0, (now - block.start) / (block.end - block.start)));
+  const isPast = progress >= 1;
+  const fillRatio = useSharedValue(reduce ? progress : 0);
 
   useEffect(() => {
-    thickness.set(withSpring(selected ? TRACK_ACTIVE : TRACK, GROW));
+    thickness.set(withSpring(selected ? BAR_ACTIVE : BAR, GROW));
   }, [selected, thickness]);
+
+  // El relleno "carga" al entrar y avanza con el reloj.
+  useEffect(() => {
+    fillRatio.set(
+      reduce ? progress : withDelay(300 + index * 90, withTiming(progress, { duration: 700, easing: EASE })),
+    );
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [progress]);
 
   const barStyle = useAnimatedStyle(() => ({
     height: thickness.value,
     borderRadius: thickness.value / 2,
   }));
+  const fillStyle = useAnimatedStyle(() => ({ width: `${fillRatio.value * 100}%` }));
 
-  const color = block.busy ? status.occupied.main : status.available.main;
-  // Parte ya transcurrida del bloque, atenuada.
-  const pastRatio = Math.min(1, Math.max(0, (now - block.start) / (block.end - block.start)));
+  const track = block.busy
+    ? { backgroundColor: status.occupied.main, opacity: 0.45 }
+    : { backgroundColor: colors.ink, opacity: 0.12 };
+  const gradient = isPast ? FILL.past : block.busy ? FILL.busy : FILL.free;
   const label = block.busy
     ? `${block.title}, ${formatMinutes(block.start)} a ${formatMinutes(block.end)}`
     : `Libre de ${formatMinutes(block.start)} a ${formatMinutes(block.end)}`;
 
   return (
     <Animated.View
-      entering={FadeIn.duration(450).delay(250 + index * 70)}
-      style={[styles.segment, { left, width }]}>
+      entering={FadeIn.duration(400).delay(200 + index * 60)}
+      style={[
+        styles.segment,
+        { left, width, opacity: dimmed ? 0.4 : 1 },
+        { transitionProperty: 'opacity', transitionDuration: 220 },
+      ]}>
       <Pressable
         accessibilityRole="button"
         accessibilityLabel={label}
         accessibilityState={{ selected }}
         onPress={onPress}
         style={styles.hit}>
-        <Animated.View style={[styles.bar, barStyle, selected && styles.barSelected]}>
-          <View style={[styles.piece, { flex: pastRatio, backgroundColor: color, opacity: 0.3 }]} />
-          <View
-            style={[
-              styles.piece,
-              { flex: 1 - pastRatio, backgroundColor: color, opacity: block.busy ? 1 : 0.85 },
-            ]}
-          />
+        <Animated.View style={[styles.bar, barStyle]}>
+          {!isPast ? <View style={[StyleSheet.absoluteFill, track]} /> : null}
+          <Animated.View style={[styles.fill, fillStyle]}>
+            <LinearGradient
+              colors={gradient}
+              start={{ x: 0, y: 0.5 }}
+              end={{ x: 1, y: 0.5 }}
+              style={StyleSheet.absoluteFill}
+            />
+          </Animated.View>
         </Animated.View>
       </Pressable>
     </Animated.View>
@@ -269,44 +314,28 @@ function DetailCard({
 }
 
 const styles = StyleSheet.create({
-  root: { paddingTop: space.sm },
+  root: { gap: space.sm },
+  header: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    marginBottom: space.xs,
+  },
+  tile: { width: 48, height: 48, borderRadius: 16, alignItems: 'center', justifyContent: 'center' },
+  headerCenter: { flexDirection: 'row', alignItems: 'center', gap: space.sm },
+  headerTitle: { fontSize: 20, fontWeight: '600', letterSpacing: -0.3 },
+  headerRight: { fontSize: 17, fontWeight: '600', letterSpacing: -0.2 },
   trackArea: { height: HIT },
   segment: { position: 'absolute', top: 0, height: HIT },
   hit: { flex: 1, justifyContent: 'center' },
-  bar: { flexDirection: 'row', overflow: 'hidden' },
-  barSelected: {
-    shadowColor: '#000',
-    shadowOpacity: 0.25,
-    shadowRadius: 10,
-    shadowOffset: { width: 0, height: 4 },
-  },
-  piece: { height: '100%' },
-  now: {
-    position: 'absolute',
-    top: HIT / 2 - 9,
-    width: 18,
-    height: 18,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  nowRing: {
-    width: 18,
-    height: 18,
-    borderRadius: 9,
-    borderWidth: 2,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  labels: { height: 22, marginTop: 2 },
-  hour: {
-    position: 'absolute',
-    width: 60,
-    textAlign: 'center',
-    fontSize: 13,
-    fontWeight: '500',
-    fontVariant: ['tabular-nums'],
-  },
-  card: { position: 'absolute', bottom: HIT - 4, width: CARD_W },
+  bar: { overflow: 'hidden' },
+  fill: { position: 'absolute', left: 0, top: 0, bottom: 0, borderRadius: BAR_ACTIVE, overflow: 'hidden' },
+  now: { position: 'absolute', top: -6, width: 56, alignItems: 'center' },
+  nowLabel: { fontSize: 11, fontWeight: '700', letterSpacing: 0.3, fontVariant: ['tabular-nums'] },
+  ends: { flexDirection: 'row', justifyContent: 'space-between' },
+  endLabel: { fontSize: 11, fontWeight: '600', letterSpacing: 0.3, fontVariant: ['tabular-nums'] },
+  // Por encima de la fila "Agenda de hoy" para no taparla.
+  card: { position: 'absolute', bottom: HIT + HEADER_H + 12, width: CARD_W },
   cardContent: { padding: space.md, gap: space.sm },
   cardHead: { flexDirection: 'row', alignItems: 'center', gap: space.sm },
   cardDot: { width: 8, height: 8, borderRadius: 4 },

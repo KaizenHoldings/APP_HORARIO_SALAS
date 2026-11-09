@@ -4,6 +4,7 @@ import Animated, { Easing, FadeInDown } from 'react-native-reanimated';
 import { BrandMark } from '@/design/components/brand-mark';
 import { GlassIconButton } from '@/design/components/glass-icon-button';
 import { SegmentedSwitch } from '@/design/components/segmented-switch';
+import { useGutter } from '@/design/hooks/use-gutter';
 import { space } from '@/design/tokens';
 
 export type RoomView = 'this' | 'others';
@@ -40,10 +41,11 @@ export function Navbar({
   const { width } = useWindowDimensions();
   const compact = width < 480;
   const segmentWidth = compact ? 112 : 136;
+  const gutter = useGutter();
 
   return (
     <View
-      style={[styles.bar, compact && styles.barCompact, style]}
+      style={[styles.bar, { paddingHorizontal: gutter }, compact && styles.barCompact, style]}
       accessibilityRole="header"
       pointerEvents="box-none">
       <Animated.View entering={enter(0)} style={styles.side}>
@@ -77,10 +79,10 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     gap: space.md,
-    paddingHorizontal: space.lg,
-    paddingVertical: space.md,
+    paddingTop: space.lg,
+    paddingBottom: space.md,
   },
-  barCompact: { paddingHorizontal: space.md, gap: space.sm },
+  barCompact: { gap: space.sm },
   side: { width: SIDE, justifyContent: 'center' },
   end: { alignItems: 'flex-end' },
   center: { flex: 1, alignItems: 'center' },

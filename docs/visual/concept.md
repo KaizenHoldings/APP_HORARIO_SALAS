@@ -37,3 +37,6 @@ vidrio con bordes finos y brillantes, texto blanco nítido.
 | 2026-11-09 | "Esta sala": estado a la izquierda (nombre + estado de color + detalle), hora y foto a la derecha, línea de tiempo abajo | Jerarquía para leer el estado a distancia; la foto da identidad sin competir |
 | 2026-11-09 | Tres estados: Disponible (verde), Por ocuparse (naranja, reunión en ≤ 15 min), Ocupada (rojo) | Avisar antes de que alguien entre a una sala que está por ocuparse |
 | 2026-11-09 | Foto de sala con fundido y halo desenfocado hacia el fondo; empieza bajo el reloj | Integrarla al degradado y mantener legible la hora |
+| 2026-11-09 | Margen lateral común (`useGutter`: 64 / 40 / 20 px) para navbar y contenido | Los componentes estaban pegados a los lados; todo alineado a la misma retícula |
+| 2026-11-09 | Línea de tiempo estilo barras de progreso (referencia del usuario): píldoras separadas, pasado en degradado lavanda→azul, bloque actual llenándose en su color, futuro gris (libre) o rojo translúcido (reservado); fila superior con icono, "Agenda de hoy" y nº de reuniones | Más minimalista y coherente con el lenguaje de la referencia |
+| 2026-11-09 | Laboratorio plegable (botón inferior izquierdo, `?lab=0`) | Ver la distribución real de la pantalla sin la barra del lab |
